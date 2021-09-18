@@ -82,6 +82,8 @@ apps=(
   vanilla
   visual-studio-code
   pycharm
+  discord
+  cheatsheet
 )
 
 # Install apps to /Applications
@@ -89,7 +91,6 @@ apps=(
 echo "installing apps with Cask..."
 brew install --cask --appdir="/Applications" ${apps[@]} --quiet
 
-brew cleanup --cask
 brew cleanup
 
 echo "Installing PAM Modules"
