@@ -3,6 +3,15 @@ echo "Loading Environment Values"
 set -o allexport; source .env; set +o allexport
 
 
+# Apps
+IFS=',' read -r -a apps <<< "$INSTALL_APPS"
+
+
+# Install apps to /Applications
+# Default is: /Users/$user/Applications
+echo "installing apps with Cask..."
+
+
 echo "-------[ ENVIRONMENT VALUES ]----------------------------------------"
 echo "GIT CONFIG NAME:		$GIT_NAME"
 echo "GIT CONFIG MAIL: 		$GIT_MAIL"
@@ -16,8 +25,12 @@ else
   echo "Fast Animations:		$SpeedUpAnimations"
   echo "Safari Debug Menu: 	$SafariDebug"
 fi
+echo "INSTALL CASKS:"
+for app in "${apps[@]}"
+do
+   echo "				$app"
+done
 echo "---------------------------------------------------------------------"
-
 
 
 read -p "Continue (y/n)? " choice
@@ -77,14 +90,8 @@ echo "Cleaning up brew"
 brew cleanup --quiet
 
 # Apps
-apps=(
-  1password
-  vanilla
-  visual-studio-code
-  pycharm
-  discord
-  cheatsheet
-)
+IFS=',' read -r -a apps <<< "$INSTALL_APPS"
+
 
 # Install apps to /Applications
 # Default is: /Users/$user/Applications
