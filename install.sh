@@ -68,7 +68,7 @@ echo "> fish config"
 fish -c fish_update_completions;
 sudo sh -c 'echo "/usr/local/bin/fish" >> /etc/shells'
 cp ./config.fish ~/.config/fish/
-chsh -s /usr/local/bin/fish
+sudo chsh -s /usr/local/bin/fish
 
 echo "Installing other brew stuff..."
 brew install wget --quiet
@@ -89,7 +89,11 @@ apps=(
 # Install apps to /Applications
 # Default is: /Users/$user/Applications
 echo "installing apps with Cask..."
-brew install --cask --appdir="/Applications" ${apps[@]} --quiet
+for app in "${apps[@]}"
+do
+   brew install --cask --appdir="/Applications" $app --quiet
+done
+
 
 brew cleanup
 
