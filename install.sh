@@ -1,15 +1,19 @@
-echo "Loading Environment Values"
+#!/bin/bash
+#
+# defaults.sh
+# Code is subject to the terms of the Mozilla Public
+# License, v2.0. If a copy of the MPL was not distributed with this
+# file, you can obtain one at https://mozilla.org/MPL/2.0/.
+# Copyright 2021 Noah Kamara
 
+
+# Loading Environment Variables
 set -o allexport; source .env; set +o allexport
 
 
-# Apps
-IFS=',' read -r -a apps <<< "$BREW_APPS"
+# Load Apps in Array
+IFS=',' read -r -a apps <<< "$APPSTORE_APPS"
 IFS=',' read -r -a brewapps <<< "$BREW_APPS"
-
-# Install apps to /Applications
-# Default is: /Users/$user/Applications
-echo "installing apps with Cask..."
 
 
 echo "-------[ ENVIRONMENT VALUES ]----------------------------------------"
@@ -17,14 +21,6 @@ echo "GIT CONFIG NAME:		$GIT_NAME"
 echo "GIT CONFIG MAIL: 		$GIT_MAIL"
 echo "PAM - WatchID:			$InstallWatchID"
 echo "PAM - TouchID:			$InstallTouchID"
-if $DontOverrideDefaults; then 
-  echo "DontOverrideDefaults:		$DontOverrideDefaults"
-else
-  echo "Expanded Save Panel:		$ExpandSavePanelByDefault"
-  echo "Subpixel Font Rendering:	$SubpxFontRender"
-  echo "Fast Animations:		$SpeedUpAnimations"
-  echo "Safari Debug Menu: 	$SafariDebug"
-fi
 echo "INSTALL Brew Casks:"
 for app in "${apps[@]}"
 do
@@ -38,6 +34,7 @@ done
 echo "---------------------------------------------------------------------"
 
 
+# Ask for Confirmation
 read -p "Continue (y/n)? " choice
 case "$choice" in 
   y|Y ) echo "Ok. Lets get started!";;
@@ -46,16 +43,12 @@ case "$choice" in
 esac
 
 
-echo "Creating an SSH key for you..."
-ssh-keygen -t rsa -f /Users/noahkamara/.ssh/id_rsa -N ""
-pbcopy < /Users/noahkamara/.ssh/id_rsa.pub
 
-echo "Please add this public key to Github (it was copied to your clipboard)\n"
-echo "https://github.com/account/ssh"
-read -p "Press [Enter] key after this..."
+#####################################################################################
+##                                     HomeBrew                                    ##
+#####################################################################################
 
-
-echo "Installing xcode-stuff"
+# Install XCode Stuff
 xcode-select --install
 
 # Check for Homebrew,
@@ -67,49 +60,76 @@ if test ! $(which brew); then
   exit
 fi
 
-
 # Update homebrew recipes
-echo "Updating homebrew..."
 brew update --quiet
 
-echo "Installing Git..."
+
+
+#####################################################################################
+##                            SSH, Git & Other Dev Stuff                           ##
+#####################################################################################
+
+# Install Git
 brew install git --quiet
 
-echo "Git config"
-
+# Set Git Username
 git config --global user.name "$GIT_NAME"
+
+# Set Git Email
 git config --global user.email "$GIT_MAIL"
 
-echo "Installing Fishshell..."
-brew install fish --quiet
-echo "> fish config"
-fish -c fish_update_completions;
-sudo sh -c 'echo "/usr/local/bin/fish" >> /etc/shells'
-cp ./config.fish ~/.config/fish/
-sudo chsh -s /usr/local/bin/fish
+# Create SSH Key
+ssh-keygen -t rsa -f /Users/noahkamara/.ssh/id_rsa -N ""
+pbcopy < /Users/noahkamara/.ssh/id_rsa.pub
+
+# Prompt to add to Github
+echo "Please add this public key to Github (it was copied to your clipboard)\n"
+echo "https://github.com/account/ssh"
+read -p "Press [Enter] key after this..."
 
 echo "Installing other brew stuff..."
 brew install wget --quiet
 
-echo "Cleaning up brew"
-brew cleanup --quiet
+# Install Brew Apps
+IFS=',' read -r -a brewapps <<< "$BREW_APPS"
 
 
-echo "Installing AppStore CLI"
+#####################################################################################
+##                                    FishShell                                    ##
+#####################################################################################
+
+
+# Install FishShell
+echo "> Installing & Configuring Fish"
+brew install fish --quiet
+
+# Update Completions
+fish -c fish_update_completions;
+
+# Add To Shells & Set as Default
+sudo sh -c 'echo "/usr/local/bin/fish" >> /etc/shells'
+sudo chsh -s /usr/local/bin/fish
+
+# Copy Configuration
+cp ./config/config.fish ~/.config/fish/
+
+
+
+#####################################################################################
+##                                  App Store Apps                                 ##
+#####################################################################################
+
+# Install AppStore CLI
 brew install mas-cli/tap/mas
 
-echo "Signing in to AppStore"
+# Sign Into AppStore
 mas signin --dialog $APPLEID_MAIL
 
-echo "Installing AppStore Apps"
+# Install AppStore Apps
 IFS=',' read -r -a apps <<< "$APPSTORE_APPS"
 for app in "${apps[@]}"; do
   mas install $app
 done
-
-
-# Apps
-IFS=',' read -r -a brewapps <<< "$BREW_APPS"
 
 
 # Install apps to /Applications
@@ -120,11 +140,13 @@ for app in "${brewapps[@]}"; do
 done
 
 
-brew cleanup
 
-echo "Installing PAM Modules"
+#####################################################################################
+##                          PAM Modules WatchID & TouchID                          ##
+#####################################################################################
+
+# Installing WatchID
 if $InstallWatchID; then
-  echo "> Installing watchID"
   sudo rm -r pam-watchid
   git clone https://github.com/insidegui/pam-watchid
   sudo make install pam-watchid/
@@ -132,8 +154,8 @@ if $InstallWatchID; then
   sudo rm -r pam-watchid
 fi
 
+# Installing TouchID
 if $InstallTouchID; then
-  echo "> Installing touchID"
   sudo rm -r pam-touchID
   git clone https://github.com/Reflejo/pam-touchID
   sudo make install pam-touchid/
@@ -142,61 +164,16 @@ if $InstallTouchID; then
 fi
 
 
-if $DontOverrideDefaults; then
-  exit 0
-fi
-echo "Modifying UserDefaults"
 
-echo "> Setting email addresses to copy actual Mail.app"
-defaults write com.apple.mail AddressesIncludeNameOnPasteboard -bool false
+#####################################################################################
+##                                   Housekeeping                                  ##
+#####################################################################################
 
-echo "> Preventing Time Machine from prompting to use new hard drives as backup volume"
-defaults write com.apple.TimeMachine DoNotOfferNewDisksForBackup -bool true
-
-echo "> Setting screenshots location to ~/Desktop"
-defaults write com.apple.screencapture location -string "$HOME/Desktop"
-
-echo "> Setting screenshot format to PNG"
-defaults write com.apple.screencapture type -string "png"
-
-echo "> Making Safari's search banners default to Contains instead of Starts With"
-defaults write com.apple.Safari FindOnPageMatchesWordStartsOnly -bool false
-
-echo "> Making Don’t automatically rearrange Spaces based on most recent use"
-defaults write com.apple.dock mru-spaces -bool false
-
-if $ExpandSavePanelByDefault; then
-  echo "> Expanding the save panel by default"
-  defaults write NSGlobalDomain NSNavPanelExpandedStateForSaveMode -bool true
-  defaults write NSGlobalDomain PMPrintingExpandedStateForPrint -bool true
-  defaults write NSGlobalDomain PMPrintingExpandedStateForPrint2 -bool true
-fi
-
-if $SubpxFontRender; then
-  echo "> Enabling subpixel font rendering on non-Apple LCDs"
-  defaults write NSGlobalDomain AppleFontSmoothing -int 2
-fi
-
-if $SpeedUpAnimations; then
-  echo "> Enabling Safari's debug menu"
-  defaults write com.apple.Safari IncludeDevelopMenu -bool true
-  defaults write com.apple.Safari WebKitDeveloperExtrasEnabledPreferenceKey -bool true
-  defaults write com.apple.Safari IncludeInternalDebugMenu -bool true
-fi
-
-if $SafariDebug; then
-  echo "> Speeding up Mission Control animations and grouping windows by application"
-  defaults write com.apple.dock expose-animation-duration -float 0.1
-  defaults write com.apple.dock "expose-group-by-app" -bool true
-  echo "> Setting Dock to auto-hide and removing the auto-hiding delay"
-  defaults write com.apple.dock autohide -bool true
-  defaults write com.apple.dock autohide-delay -float 0
-  defaults write com.apple.dock autohide-time-modifier -float 0.15
-fi
-
-echo "Done!"
+# Clean Up Brew
+brew cleanup --quiet
 
 
-
-
-
+#####################################################################################
+##                                 Setting Defaults                                ##
+#####################################################################################
+./scripts/defaults.sh 
